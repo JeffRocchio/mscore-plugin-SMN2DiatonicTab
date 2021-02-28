@@ -59,12 +59,19 @@
 //
 //------------------------------------------------------------------------------
 
+//------------------------------------------------------------------------------
+//  1.1: Adding support for ties
+//------------------------------------------------------------------------------
+
+
+
+
 import QtQuick 2.0
 import QtQuick.Dialogs 1.1
 import MuseScore 3.0
 
 MuseScore {
-      version:  "1.0"
+      version:  "1.1"
       description: "Generate Diatonc Mtn Dulcimer TAB from an SMN staff"
       menuPath: "Plugins.Mtn Dulcimer - Diatonic TAB from SMN"
 
@@ -93,7 +100,9 @@ MuseScore {
 		"Selection appears to be invalid. Please clear your selection and try again. 
 		Be sure to select whole measures, do not start with part of a measure.",
 					//	6:
-		"Cannot find a valid TAB staff immediately below your selected range."
+		"Cannot find a valid TAB staff immediately below your selected range.",
+		//	7:
+		"An error occurred trying to create tied note."
 		]
 		
 			function getError() { return bError; }
@@ -252,6 +261,7 @@ MuseScore {
 		property int iNumOfNotes: 3
 		property int iDurationNum: 1
 		property int iDurationDem: 4
+		property var oNoteBackTie: []
 		property var iNotePitch: [50, 57, 62] // <- just setting defaults to std opening tuning.
 		property var iNoteString: [0, 1, 2]
 		property var iNoteFret: [0, 0, 0]
@@ -339,7 +349,22 @@ MuseScore {
 			if (bDEBUG) console.log("    ---- Selection Start Tick <", oSelection.iUsrSelectStartTick, "> ,  EndTick <", oSelection.iUsrSelectEndTick, ">");
 
 			if(bDEBUG) console.log("\n======== | storeUserRange() RETURNing to caller ________________________________________\n");
-		} // end function storeUserRange()
+			
+		} // end oSelection.storeUserRange()
+		
+		function clearSelection(oCursor) {
+			//   PURPOSE: Clear any selection in the score. This function
+			//is used by writeTABties(), and perhpas by other functions 
+			//have to rely on the cmd() interface to add specific note 
+			//elements not otherwise accessable through the plugin API.
+			//   ASSUMES:
+			//		1.	oStaffInfo.setStaffInx() has been called
+			//			prior to calling this function.
+			
+			curScore.selection.clear();
+
+			
+		} // end oSelection.clearSelection();
 		
 		function setSelectionRange(oCursor) {
 			//   PURPOSE: Set the score's selection range using the start tick
@@ -508,6 +533,42 @@ MuseScore {
 		
 	} // end assessValidity()
 	
+	function writeTABties(oCursor) {
+		//	PURPOSE: Using the chord data in oTABchordInfo object, add any 
+		//ties to the chord we are currently writing to the TAB staff.
+		//	ASSUMES:
+		//		1.	oTABchordInfo is populated with a valid diatonc+ chord
+		//			representation, including info about tied notes.
+		//		2.	oCursor is sitting on the chord being tied to, not the 
+		//			starting note of the tie.
+		var bDEBUG = true;
+		//bDEBUG = false;
+		
+		if(bDEBUG) console.log("\n======== | In function write TABties() | =================================");
+		
+		var oNote;
+
+		for (var i=0; i<oTABchordInfo.iNumOfNotes; i++) {
+			if(oTABchordInfo.oNoteBackTie[i] != null) { // we have tie object, add the tie
+				oNote = oTABchordInfo.oNoteBackTie[i].startNote;
+				if(!curScore.selection.select(oNote, false)) {
+					oUserMessage.setError(7); //selecting 1st tied note failed.
+					return false;
+				} else {
+					cmd("tie"); // <- we're good, add the tie
+				}
+			}
+		}
+		
+		oSelection.clearSelection(oCursor);
+		
+		if(bDEBUG) console.log("\n======== | write TABties() RETURNing to caller ________________________________________>\n");
+		
+		return true;
+		
+	} // end write TABties()
+	
+	
 	function writeTABchord(oCursor) {
 		//	PURPOSE: Using the chord data in oTABchordInfo object, write that
 		//chord to the TAB staff.
@@ -527,7 +588,7 @@ MuseScore {
 		//			it was on when coming into this function.
 		
 		var bDEBUG = true;
-		bDEBUG = false;
+		//bDEBUG = false;
 		
 		if(bDEBUG) console.log("\n======== | In function writeTABchord() | =================================");
 
@@ -543,7 +604,7 @@ MuseScore {
 			console.log(" ");
 			console.log("    ---- oTABchordInfo | # of notes [", oTABchordInfo.iNumOfNotes, "]---->");
 			for (var n=0; n<oTABchordInfo.iNumOfNotes; n++) {
-				console.log("    ---- ---- Note <", n, "> Pitch <", oTABchordInfo.iNotePitch[n], "> HalfFret <",oTABchordInfo.iNoteHalf[n],"> String <", oTABchordInfo.iNoteString[n],">");
+				console.log("    ---- ---- Note <", n, "> Pitch <", oTABchordInfo.iNotePitch[n], "> HalfFret <",oTABchordInfo.iNoteHalf[n],"> String <", oTABchordInfo.iNoteString[n],"> backTie <", oTABchordInfo.oNoteBackTie,">");
 			}
 			console.log(" ");
 		}
@@ -572,8 +633,10 @@ MuseScore {
 				half.text = oFretBoard.sHalfFretSymbol;
 				half.offsetX = oFretBoard.nHalfFretXPosition;
 				half.offsetY = oFretBoard.nHalfFretYPositions[oTABchordInfo.iNoteString[i]];
-			} // end if stmt
-		} // end for loop
+			} // end the half-note if() stmt
+		} // end the note-adding for() loop
+		
+		writeTABties(oCursor);
 
 		oCursor.staffIdx = oStaffInfo.iSMNstaffIdx; // <-- restore cursor to SMN staff.
 
@@ -669,6 +732,8 @@ MuseScore {
 			console.log("    ---- SMN chord | # of notes [", oSMNchord.notes.length, "]---->");
 			for (var n=0; n<oSMNchord.notes.length; n++) {
 				console.log("    ---- ---- Note [", n, "] Pitch <", oSMNchord.notes[n].pitch, ">");
+				if(oSMNchord.notes[n].tieForward != null) console.log("    ---- ---- Note [", n, "] has a Tie Forward: startNote Pitch <", oSMNchord.notes[n].tieForward.startNote.pitch, "> endPitch <", oSMNchord.notes[n].tieForward.endNote.pitch, ">");
+				if(oSMNchord.notes[n].tieBack != null) console.log("    ---- ---- Note [", n, "] has a Tie Back: startNote Pitch <", oSMNchord.notes[n].tieBack.startNote.pitch, "> endPitch <", oSMNchord.notes[n].tieBack.endNote.pitch, ">");
 			}
 			console.log(" ");
 		}
@@ -689,8 +754,18 @@ MuseScore {
 		oTABchordInfo.iDurationDem = oSMNchord.duration.denominator;
 		for (var i=0+iLoopOffset; i<oTABchordInfo.iNumOfNotes+iLoopOffset; i++) {
 			oTABchordInfo.iNotePitch[i-iLoopOffset] = oSMNchord.notes[i].pitch;
-			oTABchordInfo.iNoteHalf[i] = false;
+			oTABchordInfo.iNoteHalf[i-iLoopOffset] = false;
+			oTABchordInfo.oNoteBackTie[i-iLoopOffset] = oSMNchord.notes[i].tieBack;
 		}
+		
+		if (bDEBUG) {
+			console.log("    ---- An inspection of Ties, if Any. fyi, number of notes in chord: [", oTABchordInfo.iNumOfNotes, "]---->");
+			for (var n=0; n<oTABchordInfo.iNumOfNotes; n++) {
+				console.log("    ---- ---- Note [", n, "] Pitch <", oTABchordInfo.iNotePitch[n], "> Tie Object <", oTABchordInfo.oNoteBackTie[n], ">");
+			}
+			console.log(" ");
+		}
+		
 		oFretBoard.convertChord();
 
 		if (bDEBUG) console.log("\n======== | buildTABchord() RETURNing to caller ________________________________________>\n");
