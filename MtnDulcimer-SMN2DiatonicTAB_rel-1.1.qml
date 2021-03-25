@@ -12,9 +12,6 @@
 //   NOTE: This file was edited with the KDE Kate editor, indentation is with
 //   tabs, tab-width: 4 space equlivant.
 //
-//   NOTE: Some DEBUG statements are enclosed in naked curly braces, {}, in 
-//   order to use the text editor's code-folding to hide them while not in use.
-//   
 //   NOTE: Sections of code warranting verbose documentation are noted with 
 //   references, in the form "See CD-##," which are rows in a table in 
 //   a LibreOffice document which can be found in my github repository
@@ -73,7 +70,7 @@ import MuseScore 3.0
 MuseScore {
       version:  "1.1"
       description: "Generate Diatonc Mtn Dulcimer TAB from an SMN staff"
-      menuPath: "Plugins.Mtn Dulcimer - Diatonic TAB from SMN"
+      menuPath: "Plugins.Mtn Dulcimer.SMN to Diatonic-TAB"
 
 	QtObject { // oUserMessage
 		id: oUserMessage
@@ -165,10 +162,15 @@ MuseScore {
 			//their pitches to diatonc+ pitches that will cause them
 			//to appear with the right diatonic+ fret numbers once
 			//Musecore writes them out to the TAB staff.
+			//	I am also adding elements to the pendingTies list here.
+			//It's not, conceptually, the best place to do this from an
+			//object model perspective. But this is where I am processing
+			//the individual notes so I believe it is the most efficient/
+			//effective place to do this given my current design.
 			//	ASSUMES: 
 			//		1.	QtObject oTABchordInfo holds the chromatc notes
 			//			we will operate on (it's a global, so I'm just
-			//			referencing here without trying to work how to
+			//			referencing here without trying to work out how to
 			//			use QML as a real object oriented language).
 			//		2.	Musecore orders notes in the chord.notes[] array
 			//			from lowest pitch to highest, and we put our
@@ -215,6 +217,10 @@ MuseScore {
 				oTABchordInfo.iNoteFret[i] = iChromoFret - oFretBoard.iTForm_Offsets[iChromoFret];
 				oTABchordInfo.iNotePitch[i] = iChromoPitch - oFretBoard.iTForm_Offsets[iChromoFret];
 				oTABchordInfo.iNoteHalf[i] = oFretBoard.bTForm_Halffrets[iChromoFret];
+			// TODO: NO, not here....do this where I write out the tab chord so that I have the TAB note object.
+				//if(oTABchordInfo.oNoteTieForward[i] != null) {
+				//	oTiesPending.insertPendingTie(i); //<-- from an OO perspective, passing 'i' is a kludge vs true object passing.
+				//}
 				iStringIdx--;
 			} // end for loop
 			
@@ -261,7 +267,10 @@ MuseScore {
 		property int iNumOfNotes: 3
 		property int iDurationNum: 1
 		property int iDurationDem: 4
-		property var oNoteBackTie: []
+		property var oNoteTieForward: [] // <-- I need this to handle ties.
+		property var oSMNnote: [] // <-- I need this to handle ties.
+		property var oTABnote: [] // <-- I need this to handle ties.
+		property var oNoteBackTie: [] // TODO <-- Don't think I need this
 		property var iNotePitch: [50, 57, 62] // <- just setting defaults to std opening tuning.
 		property var iNoteString: [0, 1, 2]
 		property var iNoteFret: [0, 0, 0]
@@ -310,7 +319,7 @@ MuseScore {
 		
 	} // end QtObject oStaffInfo
 
-	QtObject {
+	QtObject { // oSelection
 		id: oSelection
 		property int iUsrSelectStartTick: 0;
 		property int iUsrSelectEndTick: 0;
@@ -430,6 +439,207 @@ MuseScore {
 
 	} // end QtObject oSelection
 	
+	
+	QtObject { // oTiesPending
+		id: oTiesPending
+
+		//	PURPOSE: This object represents a list of ties-forward we have
+		//sensed on the SMN staff which are waiting for us to find their
+		//matching tied-to notes to put the tie on the right TAB notes.
+		//	Note that it did take me a lot of experimentation to work out 
+		//how to do this. See CD-10 for the gory details.
+		
+					//	This is a list of pending ties, with associated
+					//meta-data I need in order to place the tie when
+					//we arrive at the matching not. The columns in this
+					//array are: 
+					//{ tabNote_firstoTABnote, tabNote_Pitch, tabNote_String, tabNote_Fret, oTie, tick_lastNote, smn_oSMNnote }
+		property var arrTies: [] // 
+
+/*
+		function () {
+			//	PURPOSE: 
+			//
+			//	ASSUMES: 
+			//		1.	
+			
+			var bDEBUG = true;
+			//bDEBUG = false;
+			
+			if (bDEBUG) console.log("\n======== | In funct oTiesPending.() | =================================");
+			
+			
+			if (bDEBUG) console.log("\n======== | () RETURNing to caller ________________________________________>\n");
+			
+		} // end function ()
+		
+		function () {
+			//	PURPOSE: 
+			//
+			//	ASSUMES: 
+			//		1.	
+			
+			var bDEBUG = true;
+			//bDEBUG = false;
+			
+			if (bDEBUG) console.log("\n======== | In funct oTiesPending.() | =================================");
+			
+			
+			if (bDEBUG) console.log("\n======== | () RETURNing to caller ________________________________________>\n");
+			
+		} // end function ()
+		*/
+
+		function completeTie(oTABnote) {
+			//	PURPOSE: Given a just written TAB note, determine if it
+			//now completes a pending tie item in the tie list.
+			//
+			//	ASSUMES: 
+			//		1.	
+			
+			var bDEBUG = true;
+			//bDEBUG = false;
+			
+			if (bDEBUG) console.log("\n======== | In funct oTiesPending.completeTie() | =================================");
+			
+					//	Search the sorted array for a  match on the note.
+			
+			
+			if (bDEBUG) console.log("\n======== | oTiesPending.completeTie() RETURNing to caller ________________________________________>\n");
+			
+		} // end function completeTie()
+		
+		function listTieArray(sHeader) {
+			//	PURPOSE: Used for debug purposes to list the pending ties
+			//array in the debug console.
+			
+			var firstTick = 0;
+			console.log("\n---- Pending Tie Array Listing ", sHeader," -------->>");
+			console.log("---- ---- array size <",arrTies.length, ">");
+			for(var i=0; i<arrTies.length; i++) {
+				console.log("---- ---- Loop Index <", i, ">");
+				firstTick = arrTies[i].oTie.startNote.parent.parent.tick;
+				console.log("---- ---- ---- oTie: 1st Note Tick <", firstTick, "> Last Note Tick <", arrTies[i].tick_lastNote, ">");
+				console.log("---- ---- ---- oSMNNote's Pitch <", arrTies[i].smn_oSMNnote.pitch, ">");
+				console.log("---- ---- ---- tabNote: Object <", arrTies[i].tabNote_firstoTABnote, "> Pitch <", arrTies[i].tabNote_Pitch, "> String <", arrTies[i].tabNote_String, "> Fret <", arrTies[i].tabNote_Fret, ">");
+			}
+			console.log("");
+			
+		} // end function listTieArray()
+		
+		function insertPendingTie(oTABchordInfo_Index) {
+			//	PURPOSE: Add a new pending tie to the list.
+			//
+			//	TAKES: 
+			//		1.	An index into the various oTABchordInfo property 
+			//			arrays. This is a kludge of a way to pass the
+			//			oTABchordInfo object into this function. Doing it
+			//			this way because I'm not so facile with javascript
+			//			or QML to make proper objects.
+			//
+			//	ASSUMES:
+			//		1.	The oTABchordInfo properties and arrays
+			//			have been fully populated so that we have all
+			//			the data, objects and variables we need to
+			//			create the pending tie list row.
+			
+			var bDEBUG = true;
+			//bDEBUG = false;
+
+			var lastTick = 0; 
+			
+			if (bDEBUG) console.log("\n======== | In funct oTiesPending.insertTie() | =================================");
+
+			lastTick = oTABchordInfo.oNoteTieForward[oTABchordInfo_Index].endNote.parent.parent.tick;
+			arrTies.push({ // <-- See CD-10 Key Learning for why this must be done in this syntax, and why 'push' must be used.
+				tabNote_firstoTABnote:oTABchordInfo.oTABnote[oTABchordInfo_Index], 
+				tabNote_Pitch: oTABchordInfo.iNotePitch[oTABchordInfo_Index],
+				tabNote_String: oTABchordInfo.iNoteString[oTABchordInfo_Index],
+				tabNote_Fret: oTABchordInfo.iNoteFret[oTABchordInfo_Index],
+				oTie: oTABchordInfo.oNoteTieForward[oTABchordInfo_Index],
+				tick_lastNote: lastTick,
+				smn_oSMNnote: oTABchordInfo.oSMNnote[oTABchordInfo_Index],
+			})
+			
+			if (bDEBUG) listTieArray("(After an Insertion)");
+			
+			if (bDEBUG) console.log("\n======== | oTiesPending.insertTie() RETURNing to caller ________________________________________>\n");
+			
+		} // end function oTiesPending.insertTie()
+		
+		function writeTABties(oCursor) {
+			//	PURPOSE: Using the chord data in oTABchordInfo object, add any 
+			//ties to the chord we are currently writing to the TAB staff.
+			//	ASSUMES:
+			//		1.	oTABchordInfo is populated with a valid diatonc+ chord
+			//			representation, including info about tied notes.
+			//		2.	oCursor is sitting on the chord being tied to, not the 
+			//			starting note of the tie.
+			var bDEBUG = true;
+			//bDEBUG = false;
+			
+			if(bDEBUG) console.log("\n======== | In function oTiesPending.writeTABties() | =================================");
+			
+			var oNote;
+			
+			for (var i=0; i<oTABchordInfo.iNumOfNotes; i++) {
+				if(oTABchordInfo.oNoteBackTie[i] != null) { // we have tie object, add the tie
+					oNote = oTABchordInfo.oNoteBackTie[i].startNote;
+					if(!curScore.selection.select(oNote, false)) {
+						oUserMessage.setError(7); //selecting 1st tied note failed.
+						return false;
+					} else {
+						cmd("tie"); // <- we're good, add the tie
+					}
+				}
+			}
+			
+			oSelection.clearSelection(oCursor);
+			
+			if(bDEBUG) console.log("\n======== | oTiesPending.writeTABties() RETURNing to caller ________________________________________>\n");
+			
+			return true;
+			
+		} // end oTiesPending.writeTABties()
+
+		function sortList() {
+			//	PURPOSE: Sort the arrTies[] array by tick_lastNote.
+			//(We do this so that we can process the subset of pending ties
+			//at the appropriate cursor locations as we walk the staff.)
+			//	ASSUMES: 
+			//		1.	
+			
+			var bDEBUG = true;
+			//bDEBUG = false;
+			
+			if (bDEBUG) console.log("\n======== | In funct oTiesPending.sortList() | =================================");
+			
+			arrTies.sort(function(a,b){
+				return -1 * (a.tick_lastNote - b.tick_lastNote); // <- reverse order as I am pushing/popping from bottom of list.
+				});
+			
+			if (bDEBUG) {
+				var firstTick = 0;
+				console.log("\n---- Array Listing After Sorting on tick_lastNote -->>");
+				console.log("---- ---- array size <",arrTies.length, ">");
+				for(var i=0; i<arrTies.length; i++) {
+					console.log("---- ---- Note <", i, ">");
+					firstTick = arrTies[i].oTie.startNote.parent.parent.tick;
+					console.log("---- ---- ---- oTie: 1st Note Tick <", firstTick, "> Last Note Tick <", arrTies[i].tick_lastNote, ">");
+					console.log("---- ---- ---- oSMNNote's Pitch <", arrTies[i].smn_oSMNnote.pitch, ">");
+					console.log("---- ---- ---- tabNote: Pitch <", arrTies[i].tabNote_Pitch, "> String <", arrTies[i].tabNote_String, "> Fret <", arrTies[i].tabNote_Fret, ">");
+				}
+				console.log("");
+			}
+			
+			if (bDEBUG) console.log("\n======== | convertChord() RETURNing to caller ________________________________________>\n");
+			
+		} // end function sortList()
+		
+		
+	} // end QtObject oTiesPending
+	
+	
 	function assessValidity(oCursor) {
 		//   PURPOSE: Prior to attempting any transformation, see 
 		//if it appears that the user has set a valid selection
@@ -533,41 +743,6 @@ MuseScore {
 		
 	} // end assessValidity()
 	
-	function writeTABties(oCursor) {
-		//	PURPOSE: Using the chord data in oTABchordInfo object, add any 
-		//ties to the chord we are currently writing to the TAB staff.
-		//	ASSUMES:
-		//		1.	oTABchordInfo is populated with a valid diatonc+ chord
-		//			representation, including info about tied notes.
-		//		2.	oCursor is sitting on the chord being tied to, not the 
-		//			starting note of the tie.
-		var bDEBUG = true;
-		//bDEBUG = false;
-		
-		if(bDEBUG) console.log("\n======== | In function write TABties() | =================================");
-		
-		var oNote;
-
-		for (var i=0; i<oTABchordInfo.iNumOfNotes; i++) {
-			if(oTABchordInfo.oNoteBackTie[i] != null) { // we have tie object, add the tie
-				oNote = oTABchordInfo.oNoteBackTie[i].startNote;
-				if(!curScore.selection.select(oNote, false)) {
-					oUserMessage.setError(7); //selecting 1st tied note failed.
-					return false;
-				} else {
-					cmd("tie"); // <- we're good, add the tie
-				}
-			}
-		}
-		
-		oSelection.clearSelection(oCursor);
-		
-		if(bDEBUG) console.log("\n======== | write TABties() RETURNing to caller ________________________________________>\n");
-		
-		return true;
-		
-	} // end write TABties()
-	
 	
 	function writeTABchord(oCursor) {
 		//	PURPOSE: Using the chord data in oTABchordInfo object, write that
@@ -591,7 +766,7 @@ MuseScore {
 		//bDEBUG = false;
 		
 		if(bDEBUG) console.log("\n======== | In function writeTABchord() | =================================");
-
+		
 		var bAdd2Chord = false;
 		var iNotesAddedSoFar = 0; // <-- only used in DEBUG STATEMENTS
 		
@@ -618,8 +793,11 @@ MuseScore {
 			if (bDEBUG) console.log("    ---- Loop Index <", i, " Tick <", oCursor.segment.tick, "Note to Add: Pitch <", oTABchordInfo.iNotePitch[i], "  Fret# <", oTABchordInfo.iNoteFret[i], "> HalfFret <", oTABchordInfo.iNoteHalf[i], ">");
 			oCursor.addNote(oTABchordInfo.iNotePitch[i], bAdd2Chord);
 			if (bAdd2Chord==false) bAdd2Chord=true; // <-- toggle true after writing 1st note.
-			oCursor.prev();
+			oCursor.prev(); // <-- Move cursor back to note we just added.
 			oCursor.element.notes[0].play = false; // <-- turn MIDI play off for all TAB notes.
+			oTABchordInfo.oTABnote[i] = oCursor.element.notes[0]; // <-- For handling ties. See CD-10.
+			if(oTABchordInfo.oNoteTieForward[i] != null) oTiesPending.insertPendingTie(i);
+			
 			iNotesAddedSoFar++;
 			if (oTABchordInfo.iNoteHalf[i]) {
 					// ============================================ See CD-02 >
@@ -636,7 +814,7 @@ MuseScore {
 			} // end the half-note if() stmt
 		} // end the note-adding for() loop
 		
-		writeTABties(oCursor);
+		// TODO writeTABties(oCursor);
 
 		oCursor.staffIdx = oStaffInfo.iSMNstaffIdx; // <-- restore cursor to SMN staff.
 
@@ -706,7 +884,8 @@ MuseScore {
 	function buildTABchord(oSMNelement) {
 		//	PURPOSE: Given a chord obtained from the SMN staff,
 		//populate the oTABchordInfo data structure so that it can 
-		//then be written out to the TAB staff as a matching chord.
+		//then be written /out to the TAB staff as a matching chord.
+		//	This includes populating info that we'll need for ties.
 		//	ASSUMES:
 		//		1.	The passed-in parameter is a valid chord object
 		//			obtained from the SMN staff.
@@ -718,11 +897,13 @@ MuseScore {
 		//			chord.notes[0] holds lowest pitch note.
 		//   RETURNS:
 		//		1.	oTABchord global object is populated and ready 
-		//to be posted to the TAB staff
-		//		2.	TRUE if successful, FALSE otherwise.
+		//			to be posted to the TAB staff.
+		//		2.	oTiesPending global object is populated with
+		//			new list entries if we have sensed a tie-foward.
+		//		3.	TRUE if successful, FALSE otherwise.
 		
 		var bDEBUG = true;
-		bDEBUG = false;
+		//bDEBUG = false;
 		
 		if (bDEBUG) console.log("\n======== | In function buildTABchord() | =================================");
 		
@@ -755,13 +936,16 @@ MuseScore {
 		for (var i=0+iLoopOffset; i<oTABchordInfo.iNumOfNotes+iLoopOffset; i++) {
 			oTABchordInfo.iNotePitch[i-iLoopOffset] = oSMNchord.notes[i].pitch;
 			oTABchordInfo.iNoteHalf[i-iLoopOffset] = false;
-			oTABchordInfo.oNoteBackTie[i-iLoopOffset] = oSMNchord.notes[i].tieBack;
+			oTABchordInfo.oSMNnote[i-iLoopOffset] = oSMNchord.notes[i]; // <-- Need this for building pending tie list.
+			oTABchordInfo.oNoteTieForward[i-iLoopOffset] = oSMNchord.notes[i].tieForward;
+			oTABchordInfo.oNoteBackTie[i-iLoopOffset] = oSMNchord.notes[i].tieBack; // TODO: <-- don't think I need this.
 		}
 		
 		if (bDEBUG) {
 			console.log("    ---- An inspection of Ties, if Any. fyi, number of notes in chord: [", oTABchordInfo.iNumOfNotes, "]---->");
 			for (var n=0; n<oTABchordInfo.iNumOfNotes; n++) {
-				console.log("    ---- ---- Note [", n, "] Pitch <", oTABchordInfo.iNotePitch[n], "> Tie Object <", oTABchordInfo.oNoteBackTie[n], ">");
+				console.log("    ---- ---- Forward Tie: Loop Indx [", n, "] Pitch <", oTABchordInfo.iNotePitch[n], "> Tie Object <", oTABchordInfo.oNoteTieForward[n], ">");
+				console.log("    ---- ---- Back Tie: Loop Indx [", n, "] Pitch <", oTABchordInfo.iNotePitch[n], "> Tie Object <", oTABchordInfo.oNoteBackTie[n], ">");
 			}
 			console.log(" ");
 		}
@@ -857,7 +1041,7 @@ MuseScore {
 		while (oCursor.segment && oCursor.tick < oSelection.iUsrSelectEndTick) {
 			if (bDEBUG)  console.log("---- ---- makeTAB()'s while loop says: Next element Type on SMN Staff <", oCursor.staffIdx, "> at Tick <", oCursor.tick, "> is a <", oCursor.element.name, ">");
 			sTabElementType = buildTABelement(oCursor.element);
-			writeTABelement(oCursor, sTabElementType);
+			//writeTABelement(oCursor, sTabElementType);
 			oCursor.next();
 			if(oCursor.tick == iLastTick) break; // A fix for last measure issue -> See CD-09
 			iLastTick = oCursor.tick;
@@ -921,7 +1105,7 @@ MuseScore {
 			oUserMessage.popupError();
 		}
 		else { 
-			clearTAB(oCursor);
+			//clearTAB(oCursor);
 			makeTAB(oCursor); // <-- OK, all looks valid, go do it.
 		}
 
