@@ -57,7 +57,8 @@
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-//  1.1: Added support for ties
+//  1.2: Fixed last chord error
+//  1.1: Added support for ties (3/25/2021)
 //------------------------------------------------------------------------------
 
 
@@ -68,7 +69,7 @@ import QtQuick.Dialogs 1.1
 import MuseScore 3.0
 
 MuseScore {
-      version:  "1.1"
+      version:  "1.2"
       description: "Generate Diatonc Mtn Dulcimer TAB from an SMN staff"
       menuPath: "Plugins.Mtn Dulcimer.SMN to Diatonic-TAB"
 
@@ -336,10 +337,8 @@ MuseScore {
 			if (oCursor.tick === 0) {
 				//	This happens when the selection includes
 				//the last measure of the score. rewind(SELECTION_END) goes 
-				//behind the last segment (where there's none) 
+				//1-tick beyond the last segment (where there's none) 
 				//and sets tick=0
-				//	BUT this fix doesn't work for the while loop in the makeTAB() function, for 
-				//reasons I can't understand. See CD-09 for more details.
 				if (bDEBUG) console.log(" **** | We have the Last Measure Selection problem | ****");
 				if (bDEBUG) console.log("---- ---- Tick of Last Segment in Score <", curScore.lastSegment.tick, ">, which is a <", curScore.lastSegment.segmentType, ">");
 				oSelection.iUsrSelectEndTick = curScore.lastSegment.tick + 1;
@@ -732,12 +731,12 @@ MuseScore {
 		//			it was on when coming into this function.
 		
 		var bDEBUG = true;
-		bDEBUG = false;
+		//bDEBUG = false;
 		
 		if(bDEBUG) console.log("\n======== | In function writeTABchord() | =================================");
 		
 		var bAdd2Chord = false;
-		var iNotesAddedSoFar = 0; // <-- only used in DEBUG STATEMENTS
+		var iPriorTick = 0; // See CD-05, Key Learning-2
 		
 		if (bDEBUG) {
 			console.log("    ---- At Tick |", oCursor.segment.tick,"| ----");
@@ -757,18 +756,16 @@ MuseScore {
 		oCursor.setDuration(oTABchordInfo.iDurationNum, oTABchordInfo.iDurationDem);
 		
 					// ============================================ See CD-05 >
-		iNotesAddedSoFar = 0;
 		for (var i=oTABchordInfo.iNumOfNotes-1; i>=0; i--) { // <-- Post the notes to the TAB staff highest pitch to lowest.
-			if (bDEBUG) console.log("    ---- Loop Index <", i, " Tick <", oCursor.segment.tick, "Note to Add: Pitch <", oTABchordInfo.iNotePitch[i], "  Fret# <", oTABchordInfo.iNoteFret[i], "> HalfFret <", oTABchordInfo.iNoteHalf[i], ">");
+			if (bDEBUG) console.log("    ---- Loop Index <", i, " Tick <", oCursor.segment.tick, "> Note to Add: Pitch <", oTABchordInfo.iNotePitch[i], "  Fret# <", oTABchordInfo.iNoteFret[i], "> HalfFret <", oTABchordInfo.iNoteHalf[i], ">");
+			iPriorTick = oCursor.segment.tick; 	//	For testing if last note in score.
 			oCursor.addNote(oTABchordInfo.iNotePitch[i], bAdd2Chord);
 			if (bAdd2Chord==false) bAdd2Chord=true; // <-- toggle true after writing 1st note.
-			oCursor.prev(); // <-- Move cursor back to note we just added.
+			if(oCursor.segment.tick > iPriorTick) oCursor.prev(); // <-- Move cursor back to note we just added.
 			oCursor.element.notes[0].play = false; // <-- turn MIDI play off for all TAB notes.
 					// For handling ties. ========================= See CD-10 >
 			oTABchordInfo.oTABnote[i] = oCursor.element.notes[0];
 			if(oTABchordInfo.oNoteTieForward[i] != null) oTiesPending.insertPendingTie(i);
-			
-			iNotesAddedSoFar++;
 			if (oTABchordInfo.iNoteHalf[i]) {
 					// ============================================ See CD-02 >
 				if (bDEBUG) console.log("   ---- ---- | Last Added Note is a Half-Fret |---- ");
@@ -987,7 +984,7 @@ MuseScore {
 		//			elements.
 
 		var bDEBUG = true;
-		bDEBUG = false;
+		//bDEBUG = false;
 		
 		if (bDEBUG) console.log("\n======== | In funct makeTAB | =================================");
 		
@@ -997,14 +994,11 @@ MuseScore {
 					//we reach the end of the selection or the score.
 		if (bDEBUG)  console.log("---- | Entering while loop that walks the SMN staff ---->>")
 		oCursor.rewind(Cursor.SELECTION_START);
-		var iLastTick = 0;
 		while (oCursor.segment && oCursor.tick < oSelection.iUsrSelectEndTick) {
 			if (bDEBUG)  console.log("---- ---- makeTAB()'s while loop says: Next element Type on SMN Staff <", oCursor.staffIdx, "> at Tick <", oCursor.tick, "> is a <", oCursor.element.name, ">");
 			sTabElementType = buildTABelement(oCursor.element);
 			writeTABelement(oCursor, sTabElementType);
 			oCursor.next();
-			if(oCursor.tick == iLastTick) break; // A fix for last measure issue -> See CD-09
-			iLastTick = oCursor.tick;
 		}
 
 		if (bDEBUG) console.log("\n======== | makeTAB() RETURNing to caller  ________________________________________>\n");
