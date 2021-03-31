@@ -69,9 +69,9 @@ import QtQuick.Dialogs 1.1
 import MuseScore 3.0
 
 MuseScore {
-      version:  "1.2"
-      description: "Generate Diatonc Mtn Dulcimer TAB from an SMN staff"
-      menuPath: "Plugins.Mtn Dulcimer.SMN to Diatonic-TAB"
+	version:  "1.2"
+	description: "Generate Diatonc Mtn Dulcimer TAB from an SMN staff"
+	menuPath: "Plugins.Mtn Dulcimer.SMN to Diatonic-TAB"
 
 	QtObject { // oUserMessage
 		id: oUserMessage
@@ -99,30 +99,30 @@ MuseScore {
 		Be sure to select whole measures, do not start with part of a measure.",
 					//	6:
 		"Cannot find a valid TAB staff immediately below your selected range.",
-		//	7:
+					//	7:
 		"An error occurred trying to create tied note."
 		]
 		
-			function getError() { return bError; }
-			
-			function setError(iMessageNum) {
-				oUserMessage.bError = true;
-				oUserMessage.iMessageNumber = iMessageNum;
-			} // end function setError()
+		function getError() { return bError; }
 		
-			function showError(bReset) {
-				console.log("", oUserMessage.sUserMessage[oUserMessage.iMessageNumber]);
-				if (bReset) { 
-					oUserMessage.iMessageNumber = 0;
-					oUserMessage.bError = false;
-				}
-			} // end function getError()
+		function setError(iMessageNum) {
+			oUserMessage.bError = true;
+			oUserMessage.iMessageNumber = iMessageNum;
+		} // end function setError()
+	
+		function showError(bReset) {
+			console.log("", oUserMessage.sUserMessage[oUserMessage.iMessageNumber]);
+			if (bReset) { 
+				oUserMessage.iMessageNumber = 0;
+				oUserMessage.bError = false;
+			}
+		} // end function getError()
+		
+		function popupError() {
 			
-			function popupError() {
-				
-				errorDialog.openErrorDialog(qsTranslate("QMessageBox", sUserMessage[iMessageNumber]));
-				
-			} // end function popupError()
+			errorDialog.openErrorDialog(qsTranslate("QMessageBox", sUserMessage[iMessageNumber]));
+			
+		} // end function popupError()
 
 	} // end oUserMessage QtObject
 	  
@@ -327,8 +327,8 @@ MuseScore {
 			var bDEBUG = true;
 			bDEBUG = false;
 			
-			if(bDEBUG) console.log("\n======== | In function storeUserRange() | =================================");
-
+			if(bDEBUG) oDebug.fnEntry(storeUserRange.name);
+			
 			oCursor.staffIdx = oStaffInfo.getStaffInx("SMN");
 			oCursor.rewind(Cursor.SELECTION_START);
 			oSelection.iUsrSelectStartTick = oCursor.tick;
@@ -347,7 +347,7 @@ MuseScore {
 			}
 			if (bDEBUG) console.log("    ---- Selection Start Tick <", oSelection.iUsrSelectStartTick, "> ,  EndTick <", oSelection.iUsrSelectEndTick, ">");
 
-			if(bDEBUG) console.log("\n======== | storeUserRange() RETURNing to caller ________________________________________\n");
+			if(bDEBUG) oDebug.fnExit(storeUserRange.name);
 			
 		} // end oSelection.storeUserRange()
 		
@@ -366,8 +366,17 @@ MuseScore {
 		} // end oSelection.clearSelection();
 		
 		function setSelectionRange(oCursor) {
-			//   PURPOSE: Set the score's selection range using the start tick
-			//and end tick properties of this object.
+			//   PURPOSE: Set the score's selection range to the user's 
+			//originally selected range, on the SMN staff. 
+			//	I use this after moving the range to the TAB staff for 
+			//the TAB staff clear/delete operation. I reset it back to 
+			//the SMN staff so that the user retains visibility into the 
+			//portion of the score that was operated on once the plugin 
+			//ends. 
+			//	I do also depend on this for the cursor.rewind() operations, 
+			//although I could revise the code to use tick locations to move 
+			//the cursor if for some reason I chose to not reset the 
+			//original user range.
 			//   ASSUMES:
 			//		1.	oStaffInfo.setStaffInx() has been called
 			//			prior to calling this function.
@@ -377,19 +386,18 @@ MuseScore {
 			var bDEBUG = true;
 			bDEBUG = false;
 			
-			if(bDEBUG) console.log("\n======== | In function setSelectionRange() | =================================");
-			
+			if(bDEBUG) oDebug.fnEntry(setSelectionRange.name);
+				
 			oCursor.staffIdx = oStaffInfo.getStaffInx("SMN");
-			var bRangeSetOk = true;
-			bRangeSetOk = curScore.selection.selectRange(oSelection.iUsrSelectStartTick, oSelection.iUsrSelectEndTick, oCursor.staffIdx, oCursor.staffIdx+1);
+			var bRangeSetOk = curScore.selection.selectRange(oSelection.iUsrSelectStartTick, oSelection.iUsrSelectEndTick, oCursor.staffIdx, oCursor.staffIdx+1);
 			if (!bRangeSetOk) {
-				if(bDEBUG) console.log("****** ERROR IN SETTING SELECTION in setSelectionRange() *******");
 				oUserMessage.setError(5);
 				return false;
 			}
+			curScore.endCmd(); // <-- this is necessary for range to be 'active' in Musecore for following operations.
 			
-			if(bDEBUG) console.log("\n======== | setSelectionRange() RETURNing to caller ________________________________________\n");
-			
+			if(bDEBUG) oDebug.fnEntry(setSelectionRange.name);
+				
 			return true;
 			
 		} // end function setSelectionRange()
@@ -407,9 +415,7 @@ MuseScore {
 			var bDEBUG = true;
 			bDEBUG = false;
 			
-			if(bDEBUG) console.log("\n======== | In function trapNotStartOfMeasure() | =================================");
-
-			storeUserRange(oCursor);
+			if(bDEBUG) oDebug.fnEntry(trapNotStartOfMeasure.name);
 			
 					// ============================================ See CD-08 >
 			oCursor.rewind(Cursor.SELECTION_START);
@@ -421,12 +427,55 @@ MuseScore {
 				}
 			}
 			
-			if(bDEBUG) console.log("\n======== | trapNotStartOfMeasure() RETURNing to caller ________________________________________\n");
-				   
+			if(bDEBUG) oDebug.fnExit(trapNotStartOfMeasure.name);
+			
 			return true;
 		
 		} // end function trapNotStartOfMeasure()
 
+		function deleteSelection(oCursor, iStartTick, iEndTick, sStaff) {
+			//	PURPOSE: cleanly delete a selection range. Used to clear
+			//out the user-selected range of the TAB staff before we 
+			//begin writing onto it.
+			//============================================ See CD-07 >
+			
+
+			var bDEBUG = true;
+			//bDEBUG = false;
+			
+			if(bDEBUG) oDebug.fnEntry(deleteSelection.name);
+
+			if (bDEBUG) console.log("---- To Be Selected --| Tick: Start <", iStartTick, "> End <", iEndTick, "> Staff Idx: Start <", oStaffInfo.getStaffInx(sStaff), "> End <", oStaffInfo.getStaffInx(sStaff)+1, ">\n");
+			
+					//	Create the selection range.
+			var bRangeSetOk = curScore.selection.selectRange(iStartTick, iEndTick, oStaffInfo.getStaffInx(sStaff), oStaffInfo.getStaffInx(sStaff)+1);
+			if (!bRangeSetOk) {
+				oUserMessage.setError(5);
+				return false;
+			}
+			curScore.endCmd(); // <-- this is necessary for range to be 'active' in Musecore for following operations.
+			
+			if (bDEBUG) {
+				oCursor.staffIdx = oStaffInfo.getStaffInx(sStaff);
+				console.log("---- Was Selected ---| Segment: Start <", curScore.selection.startSegment, 
+					"> End <", curScore.selection.endSegment, 
+				"> ---| Staff: Start <", curScore.selection.startStaff, 
+				"> End <", curScore.selection.EndStaff,
+				">\n");
+				oCursor.rewind(Cursor.SELECTION_START);
+				console.log("---- Cursor rewind to START: On Staff <", oCursor.staffIdx, "> At Tick <", oCursor.tick, ">\n");
+				oCursor.rewind(Cursor.SELECTION_END);
+				console.log("---- Cursor rewind to END: On Staff <", oCursor.staffIdx, "> At Tick <", oCursor.tick, ">");
+			}
+			
+			cmd("delete");
+			
+			if(bDEBUG) oDebug.fnExit(deleteSelection.name);
+			
+			return true;
+			
+		} // end function deleteSelection()
+		
 	} // end QtObject oSelection
 	
 	QtObject { // oTiesPending
@@ -444,40 +493,6 @@ MuseScore {
 					//array are: 
 					//{ tabNote_firstoTABnote, tabNote_Pitch, tabNote_String, tabNote_Fret, oTie, tick_lastNote, smn_oSMNnote }
 		property var arrTies: [] // 
-
-/*
-		function () {
-			//	PURPOSE: 
-			//
-			//	ASSUMES: 
-			//		1.	
-			
-			var bDEBUG = true;
-			//bDEBUG = false;
-			
-			if (bDEBUG) console.log("\n======== | In funct oTiesPending.() | =================================");
-			
-			
-			if (bDEBUG) console.log("\n======== | () RETURNing to caller ________________________________________>\n");
-			
-		} // end function ()
-		
-		function () {
-			//	PURPOSE: 
-			//
-			//	ASSUMES: 
-			//		1.	
-			
-			var bDEBUG = true;
-			//bDEBUG = false;
-			
-			if (bDEBUG) console.log("\n======== | In funct oTiesPending.() | =================================");
-			
-			
-			if (bDEBUG) console.log("\n======== | () RETURNing to caller ________________________________________>\n");
-			
-		} // end function ()
-		*/
 
 		function writeTiesAtTick(oCursor) {
 			//	PURPOSE: Write out all pending ties for the current 
@@ -605,8 +620,26 @@ MuseScore {
 			
 		} // end function sortList()
 		
-		
 	} // end QtObject oTiesPending
+	
+	QtObject { // oDebug
+		id: oDebug
+
+		//PURPOSE:
+		//	Provide services that help in debugging. This is primarily 
+		//services to create console.log print statements.
+		
+		function fnEntry(fnName) {
+				console.log("");
+				console.log("======== | In function ", fnName, "() | =================================\n");
+		}
+		
+		function fnExit(fnName) {
+			console.log("");
+			console.log("======== | ", fnName, "() RETURNing to caller ||\n");
+		}
+		
+	} // end QtObject oDebug
 	
 	
 	function assessValidity(oCursor) {
@@ -623,29 +656,51 @@ MuseScore {
 		//the arrangement on whatever staff it is Linked to. And
 		//unfortunally it is not possible to unlink it.
 		//   RETURNS:
-		//		1.	true if all is well, false if not.
-		//		2.	If false, the oUserMessage object will contain
+		//		1.	true if all is well, false if not. And if true:
+		//		2.	Selected user range, the staff indicies, and 
+		//			the string data will have been stored in 
+		//			oSelection, oStaffInfo, and oFretBoard
+		//			objects.
+		//		3.	If false, the oUserMessage object will contain
 		//an error number which can be used to inform the user.
 		
 		var bDEBUG = true;
 		bDEBUG = false;
 
-		if(bDEBUG) console.log("\n======== | In function assessValidity() | =================================");
+		if(bDEBUG) oDebug.fnEntry(assessValidity.name);
 		
 					//   1st: Do we have a selection?
+		if(bDEBUG) {
+			console.log("---- Inspecting the Selection ---|");
+			console.log("---- ---- # of Elements Selected <", curScore.selection.elements.length, ">");
+			console.log("---- ---- Range or no Range? <", curScore.selection.isRange, ">");
+		}
 		if (curScore.selection.elements.length==0) {
 			oUserMessage.setError(1);
 			return false;
 		}
+		
+					//	We have a selection, but now is it a range (vs just 
+					//some single notes/rests)?
+		if (!curScore.selection.isRange) {
+			oUserMessage.setError(5);
+			return false;
+		}
+					
+		
+					//	We have a valid selection, now store the range.
+		oSelection.storeUserRange(oCursor);
+		
 
-		//   Have a selection, now set the staff index values.
+					//	Now set the staff index values.
 		oStaffInfo.setStaffInx(oCursor);
 		if(bDEBUG) { // DEBUG STATEMENTS
 			console.log("---- SMN staff Index <", oStaffInfo.getStaffInx("SMN"), ">");
 			console.log("---- TAB staff Index <", oStaffInfo.getStaffInx("TAB"), ">");
 			console.log(" ");
 		}
-					//Make sure selection starts on a measure boundary.
+		
+					//	Make sure selection starts on a measure boundary.
 		if (!oSelection.trapNotStartOfMeasure(oCursor)) {
 			oUserMessage.setError(5);
 			return false;
@@ -665,7 +720,7 @@ MuseScore {
 			oUserMessage.setError(6);
 			return false;
 		}
-					//	Get the part the TAB staff is in, 
+					//	Get the Part the TAB staff is in, 
 					//see if it looks OK; and if so, get the string
 					//information - # of strings and tuning.
 		oCursor.rewind(Cursor.SELECTION_START);
@@ -706,8 +761,7 @@ MuseScore {
 			} // end instrument inspection loop
 		} // end instrument seeking loop
 		
-		if(bDEBUG) console.log("\n======== | assessValidity() RETURNing to caller ________________________________________\n");
-		
+		if(bDEBUG) oDebug.fnExit(assessValidity.name);
 		return true;
 		
 	} // end assessValidity()
@@ -733,7 +787,7 @@ MuseScore {
 		var bDEBUG = true;
 		//bDEBUG = false;
 		
-		if(bDEBUG) console.log("\n======== | In function writeTABchord() | =================================");
+		if(bDEBUG) oDebug.fnEntry(writeTABchord.name);
 		
 		var bAdd2Chord = false;
 		var iPriorTick = 0; // See CD-05, Key Learning-2
@@ -785,7 +839,8 @@ MuseScore {
 		
 		oCursor.staffIdx = oStaffInfo.iSMNstaffIdx; // <-- restore cursor to SMN staff.
 
-		if(bDEBUG) console.log("\n======== | writeTABchord() RETURNing to caller ________________________________________>\n");
+		if(bDEBUG) oDebug.fnExit(writeTABchord.name);
+		
 	} // end writeTABchord()
 	
 	function writeTABrest(oCursor) {
@@ -802,7 +857,7 @@ MuseScore {
 		var bDEBUG = true;
 		bDEBUG = false;
 
-		if (bDEBUG) console.log("\n======== | In funct writeTABrest | =================================");
+		if(bDEBUG) oDebug.fnEntry(writeTABrest.name);
 		
 		oCursor.staffIdx = oStaffInfo.iTABstaffIdx;
 		oCursor.setDuration(oTABrestInfo.iDurationNum, oTABrestInfo.iDurationDem);
@@ -812,7 +867,7 @@ MuseScore {
 		oCursor.staffIdx = oStaffInfo.iSMNstaffIdx; // <-- restore cursor back to SMN staff.
 		if (bDEBUG) console.log("   --- After  Adding Rest: On Staff <", oCursor.staffIdx, "> At Tick: <", oCursor.segment.tick,">");
 		
-		if (bDEBUG) console.log("\n======== | writeTABrest() RETURNing to caller ________________________________________>\n");
+		if(bDEBUG) oDebug.fnExit(writeTABrest.name);
 	} // end writeTABrest
 	
 	function writeTABelement(oCursor, sTabElement) {
@@ -826,7 +881,7 @@ MuseScore {
 		var bDEBUG = true;
 		bDEBUG = false;
 
-		if (bDEBUG) console.log("\n======== | In funct writeTABelement() | =================================");
+		if(bDEBUG) oDebug.fnEntry(writeTABelement.name);
 		
 		if (bDEBUG) console.log("    ---- Element Type to Write: ", sTabElement);
 		switch (sTabElement) {
@@ -845,7 +900,7 @@ MuseScore {
 				break;
 		}
 		
-		if (bDEBUG) console.log("\n======== | writeTABelement() RETURNing to caller ________________________________________>\n");
+		if(bDEBUG) oDebug.fnExit(writeTABelement.name);
 	} // writeTABelement()
 	
 	function buildTABchord(oSMNelement) {
@@ -872,7 +927,7 @@ MuseScore {
 		var bDEBUG = true;
 		bDEBUG = false;
 		
-		if (bDEBUG) console.log("\n======== | In function buildTABchord() | =================================");
+		if(bDEBUG) oDebug.fnEntry(buildTABchord.name);
 		
 		var oSMNchord = oSMNelement;
 		
@@ -909,7 +964,7 @@ MuseScore {
 		
 		oFretBoard.convertChord();
 
-		if (bDEBUG) console.log("\n======== | buildTABchord() RETURNing to caller ________________________________________>\n");
+		if(bDEBUG) oDebug.fnExit(buildTABchord.name);
 	} // end buildTABchord()
 	
 	function buildTABrest(oSMNelement) {
@@ -923,7 +978,7 @@ MuseScore {
 		var bDEBUG = true;
 		bDEBUG = false;
 		
-		if (bDEBUG) console.log("\n======== | In function buildTABrest() | =================================");
+		if(bDEBUG) oDebug.fnEntry(buildTABrest.name);
 		
 		var oSMNrest = oSMNelement;
 		
@@ -931,10 +986,9 @@ MuseScore {
 		oTABrestInfo.iDurationDem = oSMNrest.duration.denominator;
 		if (bDEBUG) console.log("   --- Rest duration <", oTABrestInfo.iDurationNum, " / ", oTABrestInfo.iDurationDem, ">");
 		
-		if (bDEBUG) console.log("\n======== | buildTABrest() RETURNing to caller ------------------------>\n");
+		if(bDEBUG) oDebug.fnExit(buildTABrest.name);
 		
-		
-	} // end buildTABelement()
+	} // end buildTABrest()
 	
 	function buildTABelement(oSMNelement) {
 		//	PURPOSE: Given an element obtained from the SMN staff,
@@ -947,7 +1001,7 @@ MuseScore {
 		var bDEBUG = true;
 		bDEBUG = false;
 
-		if (bDEBUG) console.log("\n======== | In funct buildTABelement() | =================================");
+		if(bDEBUG) oDebug.fnEntry(buildTABelement.name);
 		
 		var sElementType = oSMNelement.name;
 		if (bDEBUG) console.log("   --- oSMNelement.name: ", oSMNelement.name);
@@ -968,7 +1022,7 @@ MuseScore {
 				break;
 		}
 
-		if (bDEBUG) console.log("\n======== | buildTABelement() RETURNing to caller  ________________________________________>\n");
+		if(bDEBUG) oDebug.fnExit(buildTABelement.name);
 		return sElementType;
 		
 	} // buildTABelement()
@@ -986,7 +1040,7 @@ MuseScore {
 		var bDEBUG = true;
 		//bDEBUG = false;
 		
-		if (bDEBUG) console.log("\n======== | In funct makeTAB | =================================");
+		if(bDEBUG) oDebug.fnEntry(makeTAB.name);
 		
 		var sTabElementType;
 		
@@ -1001,70 +1055,39 @@ MuseScore {
 			oCursor.next();
 		}
 
-		if (bDEBUG) console.log("\n======== | makeTAB() RETURNing to caller  ________________________________________>\n");
+		if(bDEBUG) oDebug.fnEntry(makeTAB.name);
 	} // end of makeTAB()
-	
-	function clearTAB(oCursor) {
-		//	PURPOSE: Clear any content that might already be present on the 
-		//TAB staff before we write new notes onto it.
-		//	ASSUMES: 
-		//		1.	We have successfully passed the assessValidity() tests.
-		//		2.	The user selection range has already been saved in
-		//			the oSelection QtObject.
-		
-		var bDEBUG = true;
-		bDEBUG = false;
-		
-		if (bDEBUG) console.log("\n======== | In funct clearTAB | =================================");
-		
-		
-					// ============================================ See CD-06 >
-		oCursor.staffIdx = oStaffInfo.getStaffInx("TAB");
-		
-		if (bDEBUG) console.log("    ---- Clearing Out Chords and text ('annotations') Currently on the TAB Staff ---->>")
-		oCursor.rewind(Cursor.SELECTION_START);
-		oCursor.staffIdx = oStaffInfo.getStaffInx("TAB");
-		while (oCursor.segment && oCursor.tick < oSelection.iUsrSelectEndTick) {
-			if (bDEBUG)  console.log("    ---- ---- At tick <", oCursor.tick, "> Element Type <", oCursor.element.name, "> Annotations", oCursor.segment.annotations.length, ">");
-			if(oCursor.element.type == Element.CHORD || oCursor.segment.annotations.length > 0 ) {
-				if (bDEBUG)  console.log("    ---- ---- ---- Removing Element at tick <", oCursor.tick, "> Element Type <", oCursor.element.name, ">");
-				removeElement(oCursor.element);
-			}
-			if(oCursor.segment.annotations.length > 0 ) {
-				for (var i=0; i<oCursor.segment.annotations.length; i++) {
-					if (bDEBUG)  console.log("    ---- ---- ---- Removing Annotations at tick <", oCursor.tick, "> Annotation Type <", oCursor.segment.annotations[i].name, ">");
-					removeElement(oCursor.segment.annotations[i]);
-				}
-			}
-		oCursor.next();
-			
-		}
-		
-		//curScore.selection.selectRange(oSelection.iUsrSelectStartTick, oSelection.iUsrSelectEndTick, oStaffInfo.getStaffInx("TAB"), oStaffInfo.getStaffInx("TAB")+1);
-		
-		if (bDEBUG) console.log("\n======== | clearTAB() RETURNing to caller  ________________________________________>\n");
-		
-	} // end clearTAB()
 	
 
 //==== PLUGIN RUN-TIME ENTRY POINT =============================================
-	onRun: {
-		var oCursor = curScore.newCursor()
 
+	onRun: {
 		console.log("********** RUNNING **********");
+
+		var oCursor = curScore.newCursor()
 		
 					//	Check that our selections and staffs look
-					//valid for what we want to.
+					//valid for what we want to do. 
+					//	Also note that the assessValidity() function will
+					//initilize the oSelection, oStaffInfo, and oFretBoard
+					//objects as well.
 		if (!assessValidity (oCursor)) {
 			oUserMessage.popupError();
 		}
+					//	All looks OK, so let's make the TAB.
 		else { 
-			//clearTAB(oCursor);
+			var iStartTick = oSelection.iUsrSelectStartTick;
+			var iEndTick = oSelection.iUsrSelectEndTick;
+			if (!oSelection.deleteSelection(oCursor, iStartTick, iEndTick, "TAB")) {
+				oUserMessage.popupError();
+				Qt.quit();
+				return;
+			};
+			oSelection.setSelectionRange(oCursor); // <-- reset the selection back to user's original on the SMN staff
 			makeTAB(oCursor); // <-- OK, all looks valid, go do it.
 		}
 
 		console.log("********** QUITTING **********");
-
 		Qt.quit();
 
 	} //END OnRun
