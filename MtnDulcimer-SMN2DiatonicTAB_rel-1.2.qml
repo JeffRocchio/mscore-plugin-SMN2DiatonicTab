@@ -14,7 +14,7 @@
 //
 //   NOTE: Sections of code warranting verbose documentation are noted with 
 //   references, in the form "See CD-##," which are rows in a table in 
-//   a LibreOffice document which can be found in my github repository
+//   a LibreOffice document which can be found in my github repository as
 //   SMN-to-Diatonic-Dulcimer-TAB_CodeDocumentation.odt.
 //
 //   NOTE: Learning QML, the Musescore plugin API, and even to some degree
@@ -57,8 +57,8 @@
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-//  1.2: Fixed last chord error
-//  1.1: Added support for ties (3/25/2021)
+//  1.2: 04/01/2021 | A few fixes, esp the 'Last chord error'
+//  1.1: 03/25/2021 |Added support for ties 
 //------------------------------------------------------------------------------
 
 
