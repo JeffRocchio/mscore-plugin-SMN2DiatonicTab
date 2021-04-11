@@ -57,8 +57,9 @@
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
+//  1.3: 04/xx/2021 | Attempting fix to last measure infinite loop issue
 //  1.2: 04/01/2021 | A few fixes, esp the 'Last chord error'
-//  1.1: 03/25/2021 |Added support for ties 
+//  1.1: 03/25/2021 | Added support for ties 
 //------------------------------------------------------------------------------
 
 
@@ -100,7 +101,9 @@ MuseScore {
 					//	6:
 		"Cannot find a valid TAB staff immediately below your selected range.",
 					//	7:
-		"An error occurred trying to create tied note."
+		"An error occurred trying to create tied note.",
+					//	8:
+		"ERROR: Infinite Loop in makeTAB()"
 		]
 		
 		function getError() { return bError; }
@@ -325,7 +328,7 @@ MuseScore {
 			//			prior to calling this function.
 			
 			var bDEBUG = true;
-			bDEBUG = false;
+			//bDEBUG = false;
 			
 			if(bDEBUG) oDebug.fnEntry(storeUserRange.name);
 			
@@ -441,7 +444,7 @@ MuseScore {
 			
 
 			var bDEBUG = true;
-			//bDEBUG = false;
+			bDEBUG = false;
 			
 			if(bDEBUG) oDebug.fnEntry(deleteSelection.name);
 
@@ -457,8 +460,8 @@ MuseScore {
 			
 			if (bDEBUG) {
 				oCursor.staffIdx = oStaffInfo.getStaffInx(sStaff);
-				console.log("---- Was Selected ---| Segment: Start <", curScore.selection.startSegment, 
-					"> End <", curScore.selection.endSegment, 
+				console.log("---- Was Selected ---| Segment: Start <", curScore.selection.startSegment.segmentType, 
+					"> End <", curScore.selection.endSegment.segmentType, 
 				"> ---| Staff: Start <", curScore.selection.startStaff, 
 				"> End <", curScore.selection.EndStaff,
 				">\n");
@@ -785,7 +788,7 @@ MuseScore {
 		//			it was on when coming into this function.
 		
 		var bDEBUG = true;
-		//bDEBUG = false;
+		bDEBUG = false;
 		
 		if(bDEBUG) oDebug.fnEntry(writeTABchord.name);
 		
@@ -1048,14 +1051,30 @@ MuseScore {
 					//we reach the end of the selection or the score.
 		if (bDEBUG)  console.log("---- | Entering while loop that walks the SMN staff ---->>")
 		oCursor.rewind(Cursor.SELECTION_START);
+		var iWatchDog = 100;
 		while (oCursor.segment && oCursor.tick < oSelection.iUsrSelectEndTick) {
-			if (bDEBUG)  console.log("---- ---- makeTAB()'s while loop says: Next element Type on SMN Staff <", oCursor.staffIdx, "> at Tick <", oCursor.tick, "> is a <", oCursor.element.name, ">");
+			if (bDEBUG)  console.log("---- ---- makeTAB()'s while loop says: Next element Type on SMN Staff <", oCursor.staffIdx, "> at Tick <", oCursor.tick, "> is a <", oCursor.element.name, "> | (Selection Last Tick is <", oSelection.iUsrSelectEndTick, ">)");
 			sTabElementType = buildTABelement(oCursor.element);
 			writeTABelement(oCursor, sTabElementType);
 			oCursor.next();
+			if(oCursor.segment) {
+				if (bDEBUG)  console.log("---- ---- makeTAB()'s post-next() result: Next segment on SMN Staff <", oCursor.staffIdx, "> at Tick <", oCursor.tick, "> is a <", oCursor.segment.segmentType, "> | (Selection Last Tick is <", oSelection.iUsrSelectEndTick, ">)\n");
+			} else {
+				if (bDEBUG)  console.log("---- ---- makeTAB()'s post-next() result: Next segment is NULL at tick <", oCursor.tick, "> | (Selection Last Tick is <", oSelection.iUsrSelectEndTick, ">)\n");
+			}
+			iWatchDog--;
+			if(iWatchDog == 0) {
+				console.log("**** **********************************************************");
+				console.log("**** ERROR: WatchDog Exceeded in makeTAB while loop");
+				console.log("**** Cursor is hung at Tick <", oCursor.tick, ">");
+				console.log("**** Selectioin EndTick is <", oSelection.iUsrSelectEndTick, ">");
+				console.log("**** **********************************************************");
+				oUserMessage.setError(8);
+				break;
+			}
 		}
 
-		if(bDEBUG) oDebug.fnEntry(makeTAB.name);
+		if(bDEBUG) oDebug.fnExit(makeTAB.name);
 	} // end of makeTAB()
 	
 
@@ -1085,6 +1104,7 @@ MuseScore {
 			};
 			oSelection.setSelectionRange(oCursor); // <-- reset the selection back to user's original on the SMN staff
 			makeTAB(oCursor); // <-- OK, all looks valid, go do it.
+			if (oUserMessage.getError()) oUserMessage.popupError(); // inform user if lingering errors.
 		}
 
 		console.log("********** QUITTING **********");
