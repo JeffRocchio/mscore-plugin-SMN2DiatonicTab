@@ -333,7 +333,7 @@ MuseScore {
 			//			prior to calling this function.
 			
 			var bDEBUG = true;
-			bDEBUG = false;
+			//bDEBUG = false;
 			
 			if(bDEBUG) oDebug.fnEntry(storeUserRange.name);
 			
@@ -341,6 +341,7 @@ MuseScore {
 			oCursor.rewind(Cursor.SELECTION_START);
 			oSelection.iUsrSelectStartTick = oCursor.tick;
 			oCursor.rewind(Cursor.SELECTION_END);
+			if (bDEBUG) console.log("---- Selection Start Tick <", oSelection.iUsrSelectStartTick, "> ,  Cursor Tick at Selection End <", oCursor.tick, ">");
 			if (oCursor.tick === 0) {
 				//	This happens when the selection includes
 				//the last measure of the score. rewind(SELECTION_END) goes 
@@ -862,7 +863,7 @@ MuseScore {
 		//			this function.
 		
 		var bDEBUG = true;
-		bDEBUG = false;
+		//bDEBUG = false;
 
 		if(bDEBUG) oDebug.fnEntry(writeTABrest.name);
 		
@@ -871,7 +872,7 @@ MuseScore {
 		oCursor.staffIdx = oStaffInfo.iTABstaffIdx;
 		oCursor.setDuration(oTABrestInfo.iDurationNum, oTABrestInfo.iDurationDem);
 		if (bDEBUG) console.log("   --- Before Adding Rest: On Staff <", oCursor.staffIdx, "> At Tick: <", oCursor.segment.tick,">");
-		iPriorTick = oCursor.segment.tick; //	For testing if last note in score. See CD-05 Key Learning #2.
+		iPriorTick = oCursor.segment.tick; 	//	For testing if last note in score. See CD-05 Key Learning #2.
 		oCursor.addRest();
 		if(oCursor.segment.tick > iPriorTick) oCursor.prev(); // <-- Move cursor back to note we just added if not last ChordRest in score.
 		oCursor.staffIdx = oStaffInfo.iSMNstaffIdx; // <-- restore cursor back to SMN staff.
@@ -1048,7 +1049,7 @@ MuseScore {
 		//			elements.
 
 		var bDEBUG = true;
-		bDEBUG = false;
+		//bDEBUG = false;
 		
 		if(bDEBUG) oDebug.fnEntry(makeTAB.name);
 		
@@ -1058,12 +1059,28 @@ MuseScore {
 					//we reach the end of the selection or the score.
 		if (bDEBUG)  console.log("---- | Entering while loop that walks the SMN staff ---->>")
 		oCursor.rewind(Cursor.SELECTION_START);
+		var iWatchDog = 20;
 		while (oCursor.segment && oCursor.tick < oSelection.iUsrSelectEndTick) {
 			if (bDEBUG)  console.log("---- ---- makeTAB()'s while loop says: Next element Type on SMN Staff <", oCursor.staffIdx, "> at Tick <", oCursor.tick, "> is a <", oCursor.element.name, "> | (Selection Last Tick is <", oSelection.iUsrSelectEndTick, ">)");
 			sTabElementType = buildTABelement(oCursor.element);
 			writeTABelement(oCursor, sTabElementType);
 			oCursor.next();
-		} // end of staff-walking while loop
+			if(oCursor.segment) {
+				if (bDEBUG)  console.log("---- ---- makeTAB()'s post-next() result: Next segment on SMN Staff <", oCursor.staffIdx, "> at Tick <", oCursor.tick, "> is a <", oCursor.segment.segmentType, "> | (Selection Last Tick is <", oSelection.iUsrSelectEndTick, ">)\n");
+			} else {
+				if (bDEBUG)  console.log("---- ---- makeTAB()'s post-next() result: Next segment is NULL at tick <", oCursor.tick, "> | (Selection Last Tick is <", oSelection.iUsrSelectEndTick, ">)\n");
+			}
+			iWatchDog--;
+			if(iWatchDog == 0) {
+				console.log("**** **********************************************************");
+				console.log("**** ERROR: WatchDog Exceeded in makeTAB while loop");
+				console.log("**** Cursor is hung at Tick <", oCursor.tick, ">");
+				console.log("**** Selectioin EndTick is <", oSelection.iUsrSelectEndTick, ">");
+				console.log("**** **********************************************************");
+				oUserMessage.setError(8);
+				break;
+			}
+		}
 
 		if(bDEBUG) oDebug.fnExit(makeTAB.name);
 	} // end of makeTAB()
